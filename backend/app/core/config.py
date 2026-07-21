@@ -13,13 +13,19 @@ class Settings(BaseSettings):
     """Runtime configuration for the API process."""
 
     app_name: str = "InsightForge API"
+    app_version: str = "0.1.0"
+    app_description: str = "AI-powered research platform API"
     environment: Literal["local", "development", "staging", "production"] = "local"
+    api_prefix: str = "/api/v1"
     log_level: str = "INFO"
     log_json: bool = False
+    host: str = "0.0.0.0"
+    port: int = 8000
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
         env_file_encoding="utf-8",
+        case_sensitive=False,
         extra="ignore",
     )
 
