@@ -1,26 +1,18 @@
-"""Version 1 health endpoint."""
-
-from __future__ import annotations
-
-from typing import Final
+"""Health check endpoint."""
 
 from fastapi import APIRouter
 
 from app.core.config import APP_VERSION, settings
 
 
-HEALTH_STATUS: Final[str] = "healthy"
-HEALTH_TAG: Final[str] = "health"
-HEALTH_PATH: Final[str] = "/health"
-
-router = APIRouter(tags=[HEALTH_TAG])
+router = APIRouter(tags=["health"])
 
 
-@router.get(HEALTH_PATH)
+@router.get("/health")
 async def health_check() -> dict[str, str]:
-    """Report that the API process is running and able to receive requests."""
+    """Report that the API is running."""
     return {
-        "status": HEALTH_STATUS,
+        "status": "healthy",
         "service": settings.app_name,
         "version": APP_VERSION,
     }

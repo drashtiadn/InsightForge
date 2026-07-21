@@ -1,10 +1,7 @@
 """InsightForge FastAPI application factory and ASGI entrypoint."""
 
-from __future__ import annotations
-
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Final
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,20 +11,12 @@ from app.api.v1.router import api_router
 from app.core.config import APP_DESCRIPTION, APP_VERSION, settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging
-from app.core.middleware import RequestContextMiddleware
-
-
-ROOT_PATH: Final[str] = "/"
-ROOT_WELCOME_MESSAGE: Final[str] = "Welcome to InsightForge API"
-CORS_ALLOW_ORIGINS: Final[list[str]] = ["*"]
-CORS_ALLOW_CREDENTIALS: Final[bool] = True
-CORS_ALLOW_METHODS: Final[list[str]] = ["*"]
-CORS_ALLOW_HEADERS: Final[list[str]] = ["*"]
+from app.core.middleware import RequestLoggingMiddleware
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    """Run startup and shutdown hooks for the API process lifetime."""
+    """Configure logging and log startup / shutdown."""
     configure_logging()
     logger.info(
         "Starting {app_name} v{version} in {environment} environment",
@@ -50,20 +39,19 @@ def create_application() -> FastAPI:
 
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=CORS_ALLOW_ORIGINS,
-        allow_credentials=CORS_ALLOW_CREDENTIALS,
-        allow_methods=CORS_ALLOW_METHODS,
-        allow_headers=CORS_ALLOW_HEADERS,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
-    application.add_middleware(RequestContextMiddleware)
+    application.add_middleware(RequestLoggingMiddleware)
 
     register_exception_handlers(application)
     application.include_router(api_router, prefix=settings.api_prefix)
 
-    @application.get(ROOT_PATH)
+    @application.get("/")
     async def root() -> dict[str, str]:
-        """Return a simple welcome payload for the service root."""
-        return {"message": ROOT_WELCOME_MESSAGE}
+        return {"message": "Welcome to InsightForge API"}
 
     return application
 
