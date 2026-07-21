@@ -8,14 +8,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
-APP_VERSION = "0.1.0"
-APP_DESCRIPTION = "AI-powered research platform API"
-
 
 class Settings(BaseSettings):
     """Runtime configuration for the API process."""
 
     app_name: str = "InsightForge API"
+    app_version: str = "0.1.0"
+    app_description: str = "AI-powered research platform API"
     environment: Literal["local", "development", "staging", "production"] = "local"
     api_prefix: str = "/api/v1"
     log_level: str = "INFO"

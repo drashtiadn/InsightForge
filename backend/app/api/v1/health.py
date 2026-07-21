@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.core.config import APP_VERSION, settings
+from app.core.config import settings
 
 
 router = APIRouter(tags=["health"])
@@ -14,5 +14,6 @@ async def health_check() -> dict[str, str]:
     return {
         "status": "healthy",
         "service": settings.app_name,
-        "version": APP_VERSION,
+        "version": settings.app_version,
+        "environment": settings.environment,
     }

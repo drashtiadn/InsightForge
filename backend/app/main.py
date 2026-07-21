@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from app.api.v1.router import api_router
-from app.core.config import APP_DESCRIPTION, APP_VERSION, settings
+from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import RequestLoggingMiddleware
@@ -21,7 +21,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     logger.info(
         "Starting {app_name} v{version} in {environment} environment",
         app_name=settings.app_name,
-        version=APP_VERSION,
+        version=settings.app_version,
         environment=settings.environment,
     )
     yield
@@ -32,8 +32,8 @@ def create_application() -> FastAPI:
     """Create and configure the InsightForge API application."""
     application = FastAPI(
         title=settings.app_name,
-        version=APP_VERSION,
-        description=APP_DESCRIPTION,
+        version=settings.app_version,
+        description=settings.app_description,
         lifespan=lifespan,
     )
 
