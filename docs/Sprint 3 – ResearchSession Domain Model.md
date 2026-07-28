@@ -242,4 +242,4 @@ The system can now store and retrieve research sessions with typed lifecycle sta
 
 # Next Sprint
 
-Sprint 4 should introduce the first API and/or service layer for research sessions, building on the existing model and repository without redesigning the persistence stack.
+Sprint 4 introduces the first REST API and service layer for research sessions—Pydantic schemas, transaction-aware services, and create/read endpoints under `/api/v1/research-sessions`.
