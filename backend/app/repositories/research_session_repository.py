@@ -14,22 +14,20 @@ class ResearchSessionRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def create(
+    def add(
         self,
         *,
         title: str,
         query: str,
         status: ResearchSessionStatus = ResearchSessionStatus.PENDING,
     ) -> ResearchSession:
-        """Insert a new research session and return the persisted ORM instance."""
+        """Stage a new research session in the current unit of work."""
         research_session = ResearchSession(
             title=title,
             query=query,
             status=status,
         )
         self._session.add(research_session)
-        await self._session.commit()
-        await self._session.refresh(research_session)
         return research_session
 
     async def get_by_id(self, session_id: uuid.UUID) -> ResearchSession | None:
