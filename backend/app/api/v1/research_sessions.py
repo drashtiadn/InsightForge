@@ -7,8 +7,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_db
 from app.repositories.research_session_repository import ResearchSessionRepository
-from app.schemas.research_session import ResearchSessionCreate, ResearchSessionResponse
-from app.services.exceptions import ResearchSessionNotFoundError
+from app.schemas.research_session import (
+    ResearchSessionCreate,
+    ResearchSessionResponse,
+    ResearchSessionStatusUpdate,
+)
+from app.services.exceptions import (
+    InvalidResearchStateTransition,
+    ResearchAlreadyCompleted,
+    ResearchAlreadyRunning,
+    ResearchSessionNotFoundError,
+)
 from app.services.research_session_service import ResearchSessionService
 
 
@@ -59,6 +68,61 @@ async def get_research_session(
     except ResearchSessionNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    return ResearchSessionResponse.model_validate(research_session)
+
+
+@router.post("/{session_id}/start", response_model=ResearchSessionResponse)
+async def start_research_session(
+    session_id: uuid.UUID,
+    service: ResearchSessionService = Depends(get_research_session_service),
+) -> ResearchSessionResponse:
+    """Move a pending research session into planning."""
+    try:
+        research_session = await service.start_research(session_id)
+    except ResearchSessionNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except (ResearchAlreadyCompleted, ResearchAlreadyRunning) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+    except InvalidResearchStateTransition as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    return ResearchSessionResponse.model_validate(research_session)
+
+
+@router.patch("/{session_id}/status", response_model=ResearchSessionResponse)
+async def update_research_session_status(
+    session_id: uuid.UUID,
+    payload: ResearchSessionStatusUpdate,
+    service: ResearchSessionService = Depends(get_research_session_service),
+) -> ResearchSessionResponse:
+    """Move a research session to the next valid workflow state."""
+    try:
+        research_session = await service.update_status(session_id, payload.status)
+    except ResearchSessionNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except (ResearchAlreadyCompleted, ResearchAlreadyRunning) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+    except InvalidResearchStateTransition as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
 

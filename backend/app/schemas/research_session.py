@@ -23,6 +23,12 @@ class ResearchSessionCreate(BaseModel):
         return stripped
 
 
+class ResearchSessionStatusUpdate(BaseModel):
+    """Payload for moving a research session to the next workflow state."""
+
+    status: ResearchSessionStatus
+
+
 class ResearchSessionResponse(BaseModel):
     """Serialized research session returned by the API."""
 
