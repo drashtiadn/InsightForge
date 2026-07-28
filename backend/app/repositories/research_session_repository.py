@@ -40,3 +40,8 @@ class ResearchSessionRepository:
             select(ResearchSession).order_by(ResearchSession.created_at.desc())
         )
         return list(result.scalars().all())
+
+    def update(self, research_session: ResearchSession) -> ResearchSession:
+        """Stage an existing research session for persistence."""
+        self._session.add(research_session)
+        return research_session
