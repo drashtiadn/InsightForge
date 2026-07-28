@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import RequestLoggingMiddleware
+from app.database.session import engine
 
 
 @asynccontextmanager
@@ -25,6 +26,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         environment=settings.environment,
     )
     yield
+    await engine.dispose()
     logger.info("Shutting down {app_name}", app_name=settings.app_name)
 
 
