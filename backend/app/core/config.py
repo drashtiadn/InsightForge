@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     llm_model: str = "gemini-2.0-flash"
     llm_temperature: float = 0.2
     gemini_api_key: str = ""
+    tavily_api_key: str = ""
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
