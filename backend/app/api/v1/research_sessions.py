@@ -10,6 +10,7 @@ from loguru import logger
 from app.core.config import settings
 from app.database.session import get_db
 from app.execution.engine import ExecutionEngine, ResearchExecutionEngine
+from app.tools.placeholder import PlaceholderTool
 from app.llm import GeminiLLMClient, LLMConnectionError
 from app.planning.exceptions import LLMUnavailable
 from app.planning.llm_planner import LLMResearchPlanner
@@ -53,8 +54,8 @@ def get_research_planner() -> ResearchPlanner:
 
 
 def get_execution_engine() -> ExecutionEngine:
-    """Provide the default sequential execution engine."""
-    return ResearchExecutionEngine()
+    """Provide the default sequential execution engine with PlaceholderTool."""
+    return ResearchExecutionEngine(tool=PlaceholderTool())
 
 
 def get_research_session_service(
