@@ -242,11 +242,13 @@ def get_execution_engine() -> ExecutionEngine:
     return ResearchExecutionEngine(tool=PlaceholderTool())
 ```
 
-To introduce Tavily, only this provider changes:
+To introduce Tavily, only this provider changes (done in Sprint 10):
 
 ```python
 def get_execution_engine() -> ExecutionEngine:
-    return ResearchExecutionEngine(tool=TavilyTool(api_key=settings.tavily_api_key))
+    return ResearchExecutionEngine(
+        tool=TavilySearchTool(api_key=settings.tavily_api_key),
+    )
 ```
 
 Nothing above or below the provider is affected.
@@ -312,4 +314,4 @@ Sprint 9 completed InsightForge's Tool layer. The execution engine no longer con
 
 The injection seam is now in place. Introducing Tavily, a vector retrieval tool, or a calculator requires writing one class that implements `Tool.execute()` and changing one line in `get_execution_engine()`. The engine, service, repository, and API are untouched.
 
-The architecture is now ready for real tool implementations and, eventually, agent-controlled tool selection.
+The architecture is now ready for real tool implementations and, eventually, agent-controlled tool selection. Sprint 10 used this seam to inject `TavilySearchTool` without modifying the engine.
