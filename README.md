@@ -63,3 +63,7 @@ Sprint documentation lives in `docs/`.
 - `docs/Sprint 5 – Research Workflow.md`
 - `docs/Sprint 6 – Research Planning Layer.md`
 - `docs/Sprint 7 – LLM Research Planner.md`
+- `docs/Sprint 8 – Execution Layer.md`
+- `docs/Sprint 9 – Tool Layer.md`
+- `docs/Sprint 10 – Tavily Search Tool.md`
+- `docs/Sprint 11 – Reporting Layer.md`

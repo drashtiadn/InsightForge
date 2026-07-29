@@ -15,6 +15,7 @@ from app.llm import GeminiLLMClient, LLMConnectionError
 from app.planning.exceptions import LLMUnavailable
 from app.planning.llm_planner import LLMResearchPlanner
 from app.planning.planner import ResearchPlanner, SimpleResearchPlanner
+from app.reporting.generator import ReportGenerator, SimpleReportGenerator
 from app.repositories.research_session_repository import ResearchSessionRepository
 from app.schemas.research_session import (
     ResearchSessionCreate,
@@ -58,17 +59,24 @@ def get_execution_engine() -> ExecutionEngine:
     return ResearchExecutionEngine(tool=PlaceholderTool())
 
 
+def get_report_generator() -> ReportGenerator:
+    """Provide the deterministic report generator."""
+    return SimpleReportGenerator()
+
+
 def get_research_session_service(
     db: AsyncSession = Depends(get_db),
     planner: ResearchPlanner = Depends(get_research_planner),
     execution_engine: ExecutionEngine = Depends(get_execution_engine),
+    report_generator: ReportGenerator = Depends(get_report_generator),
 ) -> ResearchSessionService:
-    """Build a request-scoped service with its repository, planner, and engine."""
+    """Build a request-scoped service with repository, planner, engine, and report generator."""
     return ResearchSessionService(
         session=db,
         repository=ResearchSessionRepository(db),
         planner=planner,
         execution_engine=execution_engine,
+        report_generator=report_generator,
     )
 
 
@@ -119,7 +127,9 @@ async def start_research_session(
 ) -> ResearchSessionResponse:
     """Move a pending research session into planning and generate a plan."""
     try:
-        research_session, _plan, _execution_result = await service.start_research(session_id)
+        research_session, _plan, _execution_result, _report = (
+            await service.start_research(session_id)
+        )
     except ResearchSessionNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -136,7 +146,7 @@ async def start_research_session(
             detail=str(exc),
         ) from exc
 
-    # Plan is generated in memory for architecture validation; not exposed yet.
+    # Plan, execution result, and report are in-memory only; not exposed yet.
     return ResearchSessionResponse.model_validate(research_session)
 
 
