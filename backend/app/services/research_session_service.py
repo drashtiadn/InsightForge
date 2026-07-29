@@ -5,6 +5,8 @@ import uuid
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.execution.engine import ExecutionEngine
+from app.execution.models import ResearchExecutionResult
 from app.models.research_session import ResearchSession, ResearchSessionStatus
 from app.planning.models import ResearchPlan
 from app.planning.planner import ResearchPlanner
@@ -44,10 +46,12 @@ class ResearchSessionService:
         session: AsyncSession,
         repository: ResearchSessionRepository,
         planner: ResearchPlanner,
+        execution_engine: ExecutionEngine,
     ) -> None:
         self._session = session
         self._repository = repository
         self._planner = planner
+        self._execution_engine = execution_engine
 
     async def create_session(self, data: ResearchSessionCreate) -> ResearchSession:
         """Validate input, persist a new session, and commit the transaction."""
@@ -75,10 +79,11 @@ class ResearchSessionService:
     async def start_research(
         self,
         session_id: uuid.UUID,
-    ) -> tuple[ResearchSession, ResearchPlan]:
-        """Start research: move PENDING -> PLANNING, then generate a plan.
+    ) -> tuple[ResearchSession, ResearchPlan, ResearchExecutionResult]:
+        """Start research: PENDING -> PLANNING, generate a plan, then execute it.
 
-        The plan is returned in memory only. It is not persisted.
+        The plan and execution result are returned in memory only.
+        Neither is persisted.
         """
         research_session = await self.get_session(session_id)
 
@@ -100,7 +105,9 @@ class ResearchSessionService:
         logger.bind(session_id=str(research_session.id)).info("Research started")
 
         plan = self._planner.create_plan(research_session)
-        return research_session, plan
+        execution_result = self._execution_engine.execute(plan)
+
+        return research_session, plan, execution_result
 
     async def update_status(
         self,

@@ -9,6 +9,7 @@ from loguru import logger
 
 from app.core.config import settings
 from app.database.session import get_db
+from app.execution.engine import ExecutionEngine, ResearchExecutionEngine
 from app.llm import GeminiLLMClient, LLMConnectionError
 from app.planning.exceptions import LLMUnavailable
 from app.planning.llm_planner import LLMResearchPlanner
@@ -51,15 +52,22 @@ def get_research_planner() -> ResearchPlanner:
     return SimpleResearchPlanner()
 
 
+def get_execution_engine() -> ExecutionEngine:
+    """Provide the default sequential execution engine."""
+    return ResearchExecutionEngine()
+
+
 def get_research_session_service(
     db: AsyncSession = Depends(get_db),
     planner: ResearchPlanner = Depends(get_research_planner),
+    execution_engine: ExecutionEngine = Depends(get_execution_engine),
 ) -> ResearchSessionService:
-    """Build a request-scoped service with its repository and planner."""
+    """Build a request-scoped service with its repository, planner, and engine."""
     return ResearchSessionService(
         session=db,
         repository=ResearchSessionRepository(db),
         planner=planner,
+        execution_engine=execution_engine,
     )
 
 
@@ -110,7 +118,7 @@ async def start_research_session(
 ) -> ResearchSessionResponse:
     """Move a pending research session into planning and generate a plan."""
     try:
-        research_session, _plan = await service.start_research(session_id)
+        research_session, _plan, _execution_result = await service.start_research(session_id)
     except ResearchSessionNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
