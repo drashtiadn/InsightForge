@@ -12,6 +12,7 @@ from app.planning.models import ResearchPlan
 from app.planning.planner import ResearchPlanner
 from app.reporting.generator import ReportGenerator
 from app.reporting.models import ResearchReport
+from app.repositories.research_report_repository import ResearchReportRepository
 from app.repositories.research_session_repository import ResearchSessionRepository
 from app.schemas.research_session import ResearchSessionCreate
 from app.services.exceptions import (
@@ -41,18 +42,20 @@ ALLOWED_STATUS_TRANSITIONS: dict[
 
 
 class ResearchSessionService:
-    """Coordinates validation, transactions, planning, execution, and reporting."""
+    """Coordinates validation, transactions, planning, execution, reporting, and persistence."""
 
     def __init__(
         self,
         session: AsyncSession,
         repository: ResearchSessionRepository,
+        report_repository: ResearchReportRepository,
         planner: ResearchPlanner,
         execution_engine: ExecutionEngine,
         report_generator: ReportGenerator,
     ) -> None:
         self._session = session
         self._repository = repository
+        self._report_repository = report_repository
         self._planner = planner
         self._execution_engine = execution_engine
         self._report_generator = report_generator
@@ -89,10 +92,10 @@ class ResearchSessionService:
         ResearchExecutionResult,
         ResearchReport,
     ]:
-        """Start research: plan, execute, then generate an in-memory report.
+        """Start research: plan, execute, generate a report, then persist it.
 
-        The plan, execution result, and report are returned in memory only.
-        None of them are persisted.
+        The plan and execution result remain in memory only. The generated
+        report is saved via ResearchReportRepository before being returned.
         """
         research_session = await self.get_session(session_id)
 
@@ -116,6 +119,13 @@ class ResearchSessionService:
         plan = self._planner.create_plan(research_session)
         execution_result = self._execution_engine.execute(plan)
         report = self._report_generator.generate(execution_result)
+
+        await self._report_repository.save(report)
+        try:
+            await self._session.commit()
+        except Exception:
+            await self._session.rollback()
+            raise
 
         return research_session, plan, execution_result, report
 

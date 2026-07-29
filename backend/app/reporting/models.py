@@ -1,7 +1,8 @@
-"""In-memory report models.
+"""Domain report models.
 
 These dataclasses represent a synthesized research report produced from a
-ResearchExecutionResult. They are value objects — immutable, never persisted.
+ResearchExecutionResult. They are immutable value objects. Persistence is
+handled separately by ResearchReportRepository — these types never touch SQL.
 """
 
 from __future__ import annotations
@@ -28,3 +29,4 @@ class ResearchReport:
     summary: str
     sections: list[ResearchSection] = field(default_factory=list)
     generated_at: datetime = field(default_factory=datetime.utcnow)
+    report_id: uuid.UUID = field(default_factory=uuid.uuid4)
