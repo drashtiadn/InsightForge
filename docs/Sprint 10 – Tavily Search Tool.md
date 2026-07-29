@@ -277,4 +277,4 @@ The implementation was validated by:
 
 Sprint 10 proved the Tool seam under real external I/O. InsightForge can now perform live web research for each planned task while the execution engine, planner, service, repository, and API remain unchanged.
 
-The next architectural steps — multi-tool routing, async execution, persistence of results, and report generation — can build on a boundary that already isolates provider details.
+The next architectural step — report generation (Sprint 11) — builds on this boundary: tools retrieve evidence, while a separate reporting layer synthesizes a coherent document. Multi-tool routing, async execution, and result persistence remain future work.

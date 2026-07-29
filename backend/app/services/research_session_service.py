@@ -10,6 +10,8 @@ from app.execution.models import ResearchExecutionResult
 from app.models.research_session import ResearchSession, ResearchSessionStatus
 from app.planning.models import ResearchPlan
 from app.planning.planner import ResearchPlanner
+from app.reporting.generator import ReportGenerator
+from app.reporting.models import ResearchReport
 from app.repositories.research_session_repository import ResearchSessionRepository
 from app.schemas.research_session import ResearchSessionCreate
 from app.services.exceptions import (
@@ -39,7 +41,7 @@ ALLOWED_STATUS_TRANSITIONS: dict[
 
 
 class ResearchSessionService:
-    """Coordinates validation, transactions, planning, and repository access."""
+    """Coordinates validation, transactions, planning, execution, and reporting."""
 
     def __init__(
         self,
@@ -47,11 +49,13 @@ class ResearchSessionService:
         repository: ResearchSessionRepository,
         planner: ResearchPlanner,
         execution_engine: ExecutionEngine,
+        report_generator: ReportGenerator,
     ) -> None:
         self._session = session
         self._repository = repository
         self._planner = planner
         self._execution_engine = execution_engine
+        self._report_generator = report_generator
 
     async def create_session(self, data: ResearchSessionCreate) -> ResearchSession:
         """Validate input, persist a new session, and commit the transaction."""
@@ -79,11 +83,16 @@ class ResearchSessionService:
     async def start_research(
         self,
         session_id: uuid.UUID,
-    ) -> tuple[ResearchSession, ResearchPlan, ResearchExecutionResult]:
-        """Start research: PENDING -> PLANNING, generate a plan, then execute it.
+    ) -> tuple[
+        ResearchSession,
+        ResearchPlan,
+        ResearchExecutionResult,
+        ResearchReport,
+    ]:
+        """Start research: plan, execute, then generate an in-memory report.
 
-        The plan and execution result are returned in memory only.
-        Neither is persisted.
+        The plan, execution result, and report are returned in memory only.
+        None of them are persisted.
         """
         research_session = await self.get_session(session_id)
 
@@ -106,8 +115,9 @@ class ResearchSessionService:
 
         plan = self._planner.create_plan(research_session)
         execution_result = self._execution_engine.execute(plan)
+        report = self._report_generator.generate(execution_result)
 
-        return research_session, plan, execution_result
+        return research_session, plan, execution_result, report
 
     async def update_status(
         self,
