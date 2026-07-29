@@ -2,18 +2,18 @@
 
 Architecture:
     ExecutionEngine (ABC)          — the stable contract for all engines
-    ResearchExecutionEngine        — deterministic, sequential, placeholder output
+    ResearchExecutionEngine        — sequential engine; delegates to a Tool
+
+Responsibility split:
+    ExecutionEngine  — decides *when* and *in what order* tasks run
+    Tool             — decides *how* each task is completed
+
+The engine depends only on the Tool abstraction, never on a concrete tool.
+Callers inject the tool at construction time (dependency injection).
 
 Future engines (not implemented here):
-    SequentialExecutionEngine      — same as current, with real tool calls
     ParallelExecutionEngine        — asyncio.gather across tasks
     DistributedExecutionEngine     — distributes tasks to worker queues
-
-Engines must not:
-    - Perform HTTP requests
-    - Write to the database
-    - Mutate the ResearchPlan they receive
-    - Call the planner
 """
 
 from __future__ import annotations
@@ -23,8 +23,12 @@ from datetime import datetime
 
 from loguru import logger
 
+from app.execution.exceptions import TaskExecutionError
 from app.execution.models import ResearchExecutionResult, ResearchTaskResult
 from app.planning.models import ResearchPlan
+from app.tools.base import Tool
+from app.tools.exceptions import ToolError
+from app.tools.models import ToolRequest
 
 
 class ExecutionEngine(ABC):
@@ -40,20 +44,29 @@ class ExecutionEngine(ABC):
 
 
 class ResearchExecutionEngine(ExecutionEngine):
-    """Deterministic sequential engine.
+    """Sequential engine that delegates each task to an injected Tool.
 
-    Executes every task in plan order, producing a placeholder output for each.
-    No external I/O. No concurrency. Purpose: validate orchestration end-to-end
-    before real agents, tool calls, or LLM completions are introduced.
+    The engine orchestrates: it sequences tasks, records timing, aggregates
+    results, and converts ToolErrors into TaskExecutionErrors.
+
+    The tool works: it produces the output for each individual task.
+
+    Args:
+        tool: The Tool implementation to invoke for every task. Must be
+              supplied by the caller — the engine never instantiates tools.
     """
 
+    def __init__(self, tool: Tool) -> None:
+        self._tool = tool
+
     def execute(self, plan: ResearchPlan) -> ResearchExecutionResult:
-        """Run all tasks sequentially and collect their results."""
+        """Run all tasks sequentially via the injected tool and collect results."""
         started_at = datetime.utcnow()
 
         log = logger.bind(
             session_id=str(plan.session_id),
             task_count=len(plan.tasks),
+            tool=self._tool.__class__.__name__,
         )
         log.info("Execution started")
 
@@ -67,15 +80,21 @@ class ResearchExecutionEngine(ExecutionEngine):
             )
             task_log.info("Task execution started")
 
-            output = f"Execution placeholder for task: {task.title}"
-            completed_at = datetime.utcnow()
+            try:
+                tool_result = self._tool.execute(ToolRequest(task=task))
+            except ToolError as exc:
+                raise TaskExecutionError(
+                    task_id=str(task.id),
+                    title=task.title,
+                    reason=exc.reason,
+                ) from exc
 
             task_results.append(
                 ResearchTaskResult(
                     task_id=task.id,
                     title=task.title,
-                    output=output,
-                    completed_at=completed_at,
+                    output=tool_result.output,
+                    completed_at=tool_result.completed_at,
                 )
             )
 
