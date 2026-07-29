@@ -16,6 +16,7 @@ from app.planning.exceptions import LLMUnavailable
 from app.planning.llm_planner import LLMResearchPlanner
 from app.planning.planner import ResearchPlanner, SimpleResearchPlanner
 from app.reporting.generator import ReportGenerator, SimpleReportGenerator
+from app.repositories.research_report_repository import ResearchReportRepository
 from app.repositories.research_session_repository import ResearchSessionRepository
 from app.schemas.research_session import (
     ResearchSessionCreate,
@@ -72,10 +73,11 @@ def get_research_session_service(
     execution_engine: ExecutionEngine = Depends(get_execution_engine),
     report_generator: ReportGenerator = Depends(get_report_generator),
 ) -> ResearchSessionService:
-    """Build a request-scoped service with repository, planner, engine, and report generator."""
+    """Build a request-scoped service with repositories, planner, engine, and report generator."""
     return ResearchSessionService(
         session=db,
         repository=ResearchSessionRepository(db),
+        report_repository=ResearchReportRepository(db),
         planner=planner,
         execution_engine=execution_engine,
         report_generator=report_generator,
@@ -148,7 +150,7 @@ async def start_research_session(
             detail=str(exc),
         ) from exc
 
-    # Plan, execution result, and report are in-memory only; not exposed yet.
+    # Plan and execution result stay in-memory; report is persisted but not exposed yet.
     return ResearchSessionResponse.model_validate(research_session)
 
 
