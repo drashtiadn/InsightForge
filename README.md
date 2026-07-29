@@ -1,6 +1,6 @@
 # InsightForge
 
-InsightForge is a production-oriented research platform being built step by step with clear architectural boundaries between API, service, repository, and database layers.
+InsightForge is a production-oriented AI research platform being built step by step with clear architectural boundaries between API, service, planning, repository, and database layers.
 
 ## Current Backend Progress
 
@@ -10,6 +10,8 @@ The backend currently supports:
 - retrieving one or many research sessions
 - starting research workflow execution
 - validating explicit lifecycle state transitions
+- decomposing research queries into structured task plans
+- generating plans using a deterministic heuristic planner or Google Gemini
 
 Current workflow:
 
@@ -22,14 +24,32 @@ Failure paths currently supported:
 
 ## Architecture
 
-The project currently follows this application flow:
-
-`Client -> API -> Service -> Repository -> Database`
+```
+Client -> API -> Service -> Planner -> (ResearchPlan, in memory)
+                    |
+                    v
+              Repository -> Database
+```
 
 - `API` handles HTTP input/output and status-code mapping
 - `Service` owns business rules, workflow validation, and transactions
+- `Planner` decomposes research queries into task lists (no persistence)
 - `Repository` persists and retrieves data only
-- `Database` stores the durable research session state
+- `Database` stores durable research session state
+
+## Planner Configuration
+
+Set in `.env`:
+
+```env
+# simple = deterministic heuristics (default, no API key needed)
+# llm    = Google Gemini-backed planning
+PLANNER_TYPE=simple
+
+GEMINI_API_KEY=your-key-here
+LLM_MODEL=gemini-2.0-flash
+LLM_TEMPERATURE=0.2
+```
 
 ## Documentation
 
@@ -41,3 +61,5 @@ Sprint documentation lives in `docs/`.
 - `docs/Sprint 3 – ResearchSession Domain Model.md`
 - `docs/Sprint 4 – ResearchSession REST API.md`
 - `docs/Sprint 5 – Research Workflow.md`
+- `docs/Sprint 6 – Research Planning Layer.md`
+- `docs/Sprint 7 – LLM Research Planner.md`
