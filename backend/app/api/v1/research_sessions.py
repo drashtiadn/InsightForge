@@ -5,7 +5,13 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from loguru import logger
+
+from app.core.config import settings
 from app.database.session import get_db
+from app.llm import GeminiLLMClient, LLMConnectionError
+from app.planning.exceptions import LLMUnavailable
+from app.planning.llm_planner import LLMResearchPlanner
 from app.planning.planner import ResearchPlanner, SimpleResearchPlanner
 from app.repositories.research_session_repository import ResearchSessionRepository
 from app.schemas.research_session import (
@@ -26,7 +32,22 @@ router = APIRouter(prefix="/research-sessions", tags=["research-sessions"])
 
 
 def get_research_planner() -> ResearchPlanner:
-    """Provide the default deterministic research planner."""
+    """Select the configured research planner implementation."""
+    logger.bind(planner_type=settings.planner_type).info("Planner selected")
+
+    if settings.planner_type == "llm":
+        try:
+            llm_client = GeminiLLMClient(api_key=settings.gemini_api_key)
+        except LLMConnectionError as exc:
+            logger.warning("LLM planner requested but provider is not configured")
+            raise LLMUnavailable(str(exc)) from exc
+
+        return LLMResearchPlanner(
+            llm_client=llm_client,
+            model=settings.llm_model,
+            temperature=settings.llm_temperature,
+        )
+
     return SimpleResearchPlanner()
 
 
