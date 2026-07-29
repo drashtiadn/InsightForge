@@ -2,9 +2,12 @@
 
 import uuid
 
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.research_session import ResearchSession, ResearchSessionStatus
+from app.planning.models import ResearchPlan
+from app.planning.planner import ResearchPlanner
 from app.repositories.research_session_repository import ResearchSessionRepository
 from app.schemas.research_session import ResearchSessionCreate
 from app.services.exceptions import (
@@ -34,15 +37,17 @@ ALLOWED_STATUS_TRANSITIONS: dict[
 
 
 class ResearchSessionService:
-    """Coordinates validation, transactions, and repository access."""
+    """Coordinates validation, transactions, planning, and repository access."""
 
     def __init__(
         self,
         session: AsyncSession,
         repository: ResearchSessionRepository,
+        planner: ResearchPlanner,
     ) -> None:
         self._session = session
         self._repository = repository
+        self._planner = planner
 
     async def create_session(self, data: ResearchSessionCreate) -> ResearchSession:
         """Validate input, persist a new session, and commit the transaction."""
@@ -67,8 +72,14 @@ class ResearchSessionService:
         """Return all research sessions ordered by newest first."""
         return await self._repository.list()
 
-    async def start_research(self, session_id: uuid.UUID) -> ResearchSession:
-        """Start a pending research session by moving it into planning."""
+    async def start_research(
+        self,
+        session_id: uuid.UUID,
+    ) -> tuple[ResearchSession, ResearchPlan]:
+        """Start research: move PENDING -> PLANNING, then generate a plan.
+
+        The plan is returned in memory only. It is not persisted.
+        """
         research_session = await self.get_session(session_id)
 
         if research_session.status == ResearchSessionStatus.COMPLETED:
@@ -81,10 +92,15 @@ class ResearchSessionService:
         }:
             raise ResearchAlreadyRunning(session_id, research_session.status)
 
-        return await self._apply_status_transition(
+        research_session = await self._apply_status_transition(
             research_session,
             ResearchSessionStatus.PLANNING,
         )
+
+        logger.bind(session_id=str(research_session.id)).info("Research started")
+
+        plan = self._planner.create_plan(research_session)
+        return research_session, plan
 
     async def update_status(
         self,

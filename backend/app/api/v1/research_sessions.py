@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_db
+from app.planning.planner import ResearchPlanner, SimpleResearchPlanner
 from app.repositories.research_session_repository import ResearchSessionRepository
 from app.schemas.research_session import (
     ResearchSessionCreate,
@@ -24,13 +25,20 @@ from app.services.research_session_service import ResearchSessionService
 router = APIRouter(prefix="/research-sessions", tags=["research-sessions"])
 
 
+def get_research_planner() -> ResearchPlanner:
+    """Provide the default deterministic research planner."""
+    return SimpleResearchPlanner()
+
+
 def get_research_session_service(
     db: AsyncSession = Depends(get_db),
+    planner: ResearchPlanner = Depends(get_research_planner),
 ) -> ResearchSessionService:
-    """Build a request-scoped service with its repository."""
+    """Build a request-scoped service with its repository and planner."""
     return ResearchSessionService(
         session=db,
         repository=ResearchSessionRepository(db),
+        planner=planner,
     )
 
 
@@ -79,9 +87,9 @@ async def start_research_session(
     session_id: uuid.UUID,
     service: ResearchSessionService = Depends(get_research_session_service),
 ) -> ResearchSessionResponse:
-    """Move a pending research session into planning."""
+    """Move a pending research session into planning and generate a plan."""
     try:
-        research_session = await service.start_research(session_id)
+        research_session, _plan = await service.start_research(session_id)
     except ResearchSessionNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -98,6 +106,7 @@ async def start_research_session(
             detail=str(exc),
         ) from exc
 
+    # Plan is generated in memory for architecture validation; not exposed yet.
     return ResearchSessionResponse.model_validate(research_session)
 
 
